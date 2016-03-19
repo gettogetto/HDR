@@ -4,7 +4,7 @@
 #include<iostream>
 using namespace std;
 using namespace cv;
-#define num 6
+#define num 7
 Mat getContrastImage(const Mat& srcImage){
 	Mat dstImage;
 	Mat kenel(3,3,CV_32F,Scalar::all(0));
@@ -80,6 +80,9 @@ void getVchannelOfHSV(const vector<Mat>& multiExposureImages,vector<Mat>& output
 		cvtColor(multiExposureImages[i],hsvImage,CV_RGB2HSV);
 		cv::split(hsvImage,planes);
 		outputImages[i]=planes[2];
+		outputImages[i].convertTo(outputImages[i],CV_32FC1,1.0/255);
+		//cout<<outputImages[i].type();
+		//imshow(to_string(long long(i)),outputImages[i]);
 	}
 }
 void getWeightMapImage_bright(vector<Mat>inputImages,vector<Mat>&outputImages){
@@ -90,18 +93,29 @@ void getWeightMapImage_bright(vector<Mat>inputImages,vector<Mat>&outputImages){
 	Mat averageImage(rows,cols,CV_32FC1,Scalar::all(0));
 
 	for(size_t i=0;i<n;i++){
+		//cout<<inputImages[i].type()<<endl;
 		//imshow(to_string(long long(i)),inputImages[i]);
-		inputImages[i].convertTo(inputImages[i],CV_32FC1,1.0/255);
 		averageImage+=inputImages[i];
-		//cout<<averageImage.type();
 	}
 	averageImage/=n;
 	//imshow("averageImage",averageImage);
+	//cout<<averageImage.at<float>(200,100);
 
 	for(size_t i=0;i<n;i++){
-		Mat tmp(rows,cols,CV_32FC1,Scalar::all(1));
-		outputImages[i]=tmp-(inputImages[i]-averageImage).mul((inputImages[i]-averageImage))/(255*255);
-		imshow(to_string(long long(i)),255*outputImages[i]);
+		//outputImages[i]=1-(inputImages[i]-averageImage).mul(inputImages[i]-averageImage)*500000;
+
+		//====================================================================//
+		for(size_t r=0;r<rows;r++){
+			for(size_t c=0;c<cols;c++){
+				double diff=inputImages[i].at<float>(r,c)-averageImage.at<float>(r,c);
+				double diff2=diff*diff;
+				double sigma=n<=5?1.0/n:0.2;
+				double mi=-diff2/(2*sigma*sigma);
+				outputImages[i].at<float>(r,c)=std::pow(2.71828,mi);//高斯
+			}
+		}
+			//cout<<outputImages[i].at<float>(100,100)<<endl;
+		//imshow(to_string(long long(i)),outputImages[i]);
 	}
 
 	//归一化
@@ -109,50 +123,83 @@ void getWeightMapImage_bright(vector<Mat>inputImages,vector<Mat>&outputImages){
 	for(size_t i=0;i<n;i++){
 		sumImage+=outputImages[i];
 	}
+	//cout<<sumImage.at<float>(100,100);
 	for(size_t i=0;i<n;i++){
-		outputImages[i]=outputImages[i].mul(sumImage);
+		outputImages[i]=outputImages[i]/sumImage;
+		//cout<<outputImages[i].at<float>(100,100);
+		//imshow(to_string(long long(i)),outputImages[i]);
 	}
 }
 
+void weightMapImage_use_Contrast_and_bright(const vector<Mat>&inputImages1,const vector<Mat>&inputImages2,vector<Mat>&outputImages){
+	size_t n=inputImages1.size();
+	size_t n2=inputImages2.size();
+
+	if(n!=n2){
+		std::cout<<"矩阵数量不同"<<endl;
+		return;
+	}
+	int rows=inputImages1[0].size().height;
+	int cols=inputImages1[0].size().width;
+
+	for(size_t i=0;i<n;i++){
+		outputImages[i]=inputImages1[i].mul(inputImages2[i]);
+	}
+	Mat sumImage(rows,cols,CV_32FC1,Scalar::all(0));
+	for(size_t i=0;i<n;i++){
+		sumImage+=outputImages[i];
+	}
+	for(size_t i=0;i<n;i++){
+		outputImages[i]=outputImages[i]/sumImage;
+	}
+}
 
 int main(){
 	vector<Mat>multiexposure(num);
-	string path="SubejctiveTest/lamp";
+	string path="SubejctiveTest/14";
 	loadMultiExposureImages(multiexposure,path,".jpg");
 	Size size=multiexposure[0].size();
 	int w=size.width;
 	int h=size.height;
 	//////////////
 	vector<Mat>multiVchannelsImages(num);
-	getVchannelOfHSV(multiexposure,multiVchannelsImages);
-	vector<Mat>res(num);
 	for(int i=0;i<num;i++){
-		res[i].create(h,w,CV_32FC1);
+		multiVchannelsImages[i].create(h,w,CV_32FC1);
 	}
-	getWeightMapImage_bright(multiVchannelsImages,res);
-	for(size_t i=0;i<num;i++){
-		//imshow(to_string(long long(i)),res[i]);
+	getVchannelOfHSV(multiexposure,multiVchannelsImages);
+	/////////////////////////////////////亮度比重图
+	vector<Mat>MapImage_bright(num);
+	for(int i=0;i<num;i++){
+		MapImage_bright[i].create(h,w,CV_32FC1);
 	}
-	for(size_t i=0;i<num;i++){
-		//imshow(to_string(long long(i)),multiVchannelsImages[i]);
-	}
+	getWeightMapImage_bright(multiVchannelsImages,MapImage_bright);
 
-	//////////////////
-	/*
+	//////////////////细节比重图
+	
 	vector<Mat>multiContrast(num);
 	getMultiContrastImage(multiexposure,multiContrast);
 
 
-	vector<Mat>MapImage(num);
+	vector<Mat>MapImage_Contrast(num);
 	for(int i=0;i<num;i++){
-		MapImage[i].create(h,w,CV_32FC1);
+		MapImage_Contrast[i].create(h,w,CV_32FC1);
 	}
 
-	getWeightMapImage_Contrast(multiContrast,MapImage);
-	
-	Mat exposureFusionImage=getExposureFusionImage(multiexposure,MapImage);
-	imshow("exposureFusionImage",exposureFusionImage);
-	*/
+	getWeightMapImage_Contrast(multiContrast,MapImage_Contrast);
+	/////////////////////////////////亮度细节比重图
+	vector<Mat>MapImage_Contrast_and_bright(num);
+	for(int i=0;i<num;i++){
+		MapImage_Contrast[i].create(h,w,CV_32FC1);
+	}
+	weightMapImage_use_Contrast_and_bright(MapImage_bright,MapImage_Contrast,MapImage_Contrast_and_bright);
+
+	////////////////////////
+	Mat exposureFusionImage1=getExposureFusionImage(multiexposure,MapImage_bright);
+	Mat exposureFusionImage2=getExposureFusionImage(multiexposure,MapImage_Contrast);
+	Mat exposureFusionImage3=getExposureFusionImage(multiexposure,MapImage_Contrast_and_bright);
+	imshow("MapImage_bright",exposureFusionImage1);
+	imshow("MapImage_Contrast",exposureFusionImage2);
+	imshow("MapImage_Contrast_and_bright",exposureFusionImage3);
 	
 	waitKey(0);
 }
