@@ -3,15 +3,19 @@
 
 hdrAlgorithm::hdrAlgorithm()
 {
+
 }
 
 
 hdrAlgorithm::~hdrAlgorithm()
 {
+
 }
-void hdrAlgorithm::getHdrImage(vector<Mat>&multiExposureImages,const string& path,const string& imageType,Mat& outputImage){
-	loadMultiExposureImages(multiExposureImages,path,imageType);
-	
+void hdrAlgorithm::getHdrImage(vector<Mat>&multiExposureImages_in,const string& path,const string& imageType,Mat& outputImage){
+	loadMultiExposureImages(multiExposureImages_in,path,imageType);
+	vector<Mat> multiExposureImages(multiExposureImages_in.size());
+	doFilter(multiExposureImages_in,multiExposureImages);
+
 	Size size=multiExposureImages[0].size();
 	int w=size.width;
 	int h=size.height;
@@ -42,7 +46,7 @@ void hdrAlgorithm::getHdrImage(vector<Mat>&multiExposureImages,const string& pat
 	}
 	weightMapImage_use_Contrast_and_bright(MapImage_bright,MapImage_Contrast,MapImage_Contrast_and_bright);
 	
-	 outputImage=getExposureFusionImage(multiExposureImages,MapImage_Contrast_and_bright);
+	outputImage=getExposureFusionImage(multiExposureImages,MapImage_Contrast_and_bright);
 }
 
 
@@ -65,6 +69,26 @@ Mat hdrAlgorithm::getContrastImage(const Mat& srcImage){
 	filter2D(srcImage,dstImage,srcImage.depth(),kenel);
 	return dstImage;
 }
+
+void hdrAlgorithm::loadMultiExposureImages(vector<Mat>&multiExposureImages,const string& path,const string& imageType){
+	size_t n=multiExposureImages.size();
+	for(std::size_t i=0;i<n;i++){
+		multiExposureImages[i]=imread(path+"/"+std::to_string(long long(i+1))+imageType);
+	}
+}
+
+void hdrAlgorithm::doFilter(vector<Mat>&inputImages,vector<Mat>&outputImages){
+	int n=inputImages.size();
+	if(n==0) return ;
+	int rows=inputImages[0].rows;
+	int cols=inputImages[0].cols;
+	//outputImages.reserve(n);
+	//std::for_each(outputImages.begin(),outputImages.end(),[=](Mat& outputImage){outputImage.create(rows,cols,inputImages[0].type());});
+	for(size_t i=0;i<n;i++){
+		cv::bilateralFilter(inputImages[i],outputImages[i],5,10,10);
+	}
+	
+}
 void hdrAlgorithm::getMultiContrastImage(const vector<Mat>&multiExposureImages,vector<Mat>&multiContrastImages){
 	for(int i=0;i<multiExposureImages.size();i++){
 		Mat grayImage;
@@ -74,9 +98,9 @@ void hdrAlgorithm::getMultiContrastImage(const vector<Mat>&multiExposureImages,v
 }
 void hdrAlgorithm::getWeightMapImage_Contrast(const vector<Mat>& multiContrast,vector<Mat>& multiMapImage){
 	int n=multiContrast.size();
-	Size size=multiContrast[0].size();
-	int w=size.width;
-	int h=size.height;
+	//Size size=multiContrast[0].size();
+	int w=multiContrast[0].cols;
+	int h=multiContrast[0].rows;
 	for(int n1=0;n1<n;n1++){
 		for(int i=0;i<h;i++){
 			for(int j=0;j<w;j++){
@@ -115,23 +139,19 @@ Mat hdrAlgorithm::getExposureFusionImage(const vector<Mat>&multiExposureImages,v
 	return exposureFusionImage;
 }
 
-void hdrAlgorithm::loadMultiExposureImages(vector<Mat>&multiExposureImages,const string& path,const string& imageType){
-	for(std::size_t i=0;i<multiExposureImages.size();i++){
-		multiExposureImages[i]=imread(path+"/"+std::to_string(long long(i+1))+imageType);
-	}
-}
+
 /////////////////////////////////////////////////////
 void hdrAlgorithm::getVchannelOfHSV(const vector<Mat>& multiExposureImages,vector<Mat>& outputImages){
 	size_t n=multiExposureImages.size();
 	for(size_t i=0;i<n;i++){
 		Mat hsvImage;
 		vector<Mat>planes;
-		cvtColor(multiExposureImages[i],hsvImage,CV_RGB2HSV);
+		cvtColor(multiExposureImages[i],hsvImage,CV_RGB2Lab);
 		cv::split(hsvImage,planes);
-		outputImages[i]=planes[2];
+		outputImages[i]=planes[0];
 		outputImages[i].convertTo(outputImages[i],CV_32FC1,1.0/255);
 		//cout<<outputImages[i].type();
-		//imshow(to_string(long long(i)),outputImages[i]);
+		//imshow(std::to_string(long long(i)),outputImages[i]);
 	}
 }
 void hdrAlgorithm::getWeightMapImage_bright(const vector<Mat>inputImages,vector<Mat>&outputImages){
@@ -158,7 +178,7 @@ void hdrAlgorithm::getWeightMapImage_bright(const vector<Mat>inputImages,vector<
 			for(size_t c=0;c<cols;c++){
 				double diff=inputImages[i].at<float>(r,c)-averageImage.at<float>(r,c);
 				double diff2=diff*diff;
-				double sigma=(n<=5?1.0/n:10.0);
+				double sigma=2;
 				double mi=-diff2/(2*sigma*sigma);
 				outputImages[i].at<float>(r,c)=std::pow(2.71828,mi);//ธ฿หน
 			}

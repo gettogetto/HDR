@@ -4,16 +4,16 @@
 #include<opencv2/imgproc/imgproc.hpp>
 #include<vector>
 using namespace cv;
-#define num 8
+#define num 2
 class hdrAlgorithm
 {
 public:
 	hdrAlgorithm();
 	~hdrAlgorithm();
-	void getHdrImage(vector<Mat>&multiExposureImages,const string& path,const string& imageType,Mat&outputImage);
+	void getHdrImage(vector<Mat>&multiExposureImages_in,const string& path,const string& imageType,Mat&outputImage);
 private:
 	void loadMultiExposureImages(vector<Mat>&multiExposureImages,const string& path,const string& imageType);
-
+	void doFilter(vector<Mat>&inputImages,vector<Mat>&outputImages);
 	Mat getContrastImage(const Mat& srcImage);
 	void getMultiContrastImage(const vector<Mat>&multiExposureImages,vector<Mat>&multiContrastImages);
 	void getWeightMapImage_Contrast(const vector<Mat>& multiContrast,vector<Mat>& multiMapImage);
