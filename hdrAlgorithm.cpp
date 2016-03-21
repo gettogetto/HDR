@@ -85,6 +85,8 @@ void hdrAlgorithm::doFilter(vector<Mat>&inputImages,vector<Mat>&outputImages){
 	//outputImages.reserve(n);
 	//std::for_each(outputImages.begin(),outputImages.end(),[=](Mat& outputImage){outputImage.create(rows,cols,inputImages[0].type());});
 	for(size_t i=0;i<n;i++){
+		//两个高斯公式的σ可以相同，而且如果σ小于10，则滤波效果不明显，如果大于150，则会有强烈的卡通效果。当实时处理时，内核尺寸d推荐为5；
+		//如果在非实时处理情况下，而且有较强的噪声时，d为9效果会较好。
 		cv::bilateralFilter(inputImages[i],outputImages[i],5,10,10);
 	}
 	
