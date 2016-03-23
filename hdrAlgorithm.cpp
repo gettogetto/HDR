@@ -63,7 +63,7 @@ Mat hdrAlgorithm::getContrastImage(const Mat& srcImage){
 	Mat kenel(3,3,CV_32F,Scalar::all(0));
 	kenel.at<float>(0,1)=-1;
 	kenel.at<float>(1,0)=-1;
-	kenel.at<float>(1,1)= 9;
+	kenel.at<float>(1,1)= 10;
 	kenel.at<float>(1,2)=-1;
 	kenel.at<float>(2,1)=-1;
 	filter2D(srcImage,dstImage,srcImage.depth(),kenel);
@@ -145,18 +145,18 @@ Mat hdrAlgorithm::getExposureFusionImage(const vector<Mat>&multiExposureImages,v
 /////////////////////////////////////////////////////
 void hdrAlgorithm::getVchannelOfHSV(const vector<Mat>& multiExposureImages,vector<Mat>& outputImages){
 	size_t n=multiExposureImages.size();
+	vector<Mat>planes;
+	Mat hsvImage;
 	for(size_t i=0;i<n;i++){
-		Mat hsvImage;
-		vector<Mat>planes;
-		cvtColor(multiExposureImages[i],hsvImage,CV_RGB2Lab);
+		cvtColor(multiExposureImages[i],hsvImage,CV_RGB2HSV);
 		cv::split(hsvImage,planes);
-		outputImages[i]=planes[0];
+		outputImages[i]=0.2*planes[0]+0.3*planes[1]+0.5*planes[2];
 		outputImages[i].convertTo(outputImages[i],CV_32FC1,1.0/255);
 		//cout<<outputImages[i].type();
 		//imshow(std::to_string(long long(i)),outputImages[i]);
 	}
 }
-void hdrAlgorithm::getWeightMapImage_bright(const vector<Mat>inputImages,vector<Mat>&outputImages){
+void hdrAlgorithm::getWeightMapImage_bright(const vector<Mat>&inputImages,vector<Mat>&outputImages){
 	size_t n=inputImages.size();
 	Size size=inputImages[0].size();
 	int rows=size.height;
@@ -180,13 +180,13 @@ void hdrAlgorithm::getWeightMapImage_bright(const vector<Mat>inputImages,vector<
 			for(size_t c=0;c<cols;c++){
 				double diff=inputImages[i].at<float>(r,c)-averageImage.at<float>(r,c);
 				double diff2=diff*diff;
-				double sigma=2;
+				double sigma=0.5;
 				double mi=-diff2/(2*sigma*sigma);
 				outputImages[i].at<float>(r,c)=std::pow(2.71828,mi);//高斯
 			}
 		}
 			//cout<<outputImages[i].at<float>(100,100)<<endl;
-		//imshow(to_string(long long(i)),outputImages[i]);
+		//imshow(std::to_string(long long(i)),outputImages[i]);
 	}
 
 	//归一化
@@ -197,24 +197,22 @@ void hdrAlgorithm::getWeightMapImage_bright(const vector<Mat>inputImages,vector<
 	//cout<<sumImage.at<float>(100,100);
 	for(size_t i=0;i<n;i++){
 		outputImages[i]=outputImages[i]/sumImage;
-		//cout<<outputImages[i].at<float>(100,100);
-		//imshow(to_string(long long(i)),outputImages[i]);
+		//std::cout<<outputImages[i].at<float>(130,160);
+		//imshow(std::to_string(long long(i)),outputImages[i]);
 	}
 }
 
 void hdrAlgorithm::weightMapImage_use_Contrast_and_bright(const vector<Mat>&inputImages1,const vector<Mat>&inputImages2,vector<Mat>&outputImages){
 	size_t n=inputImages1.size();
 	size_t n2=inputImages2.size();
+	const int bi = 0.8;
+	assert(n==n2);
 
-	if(n!=n2){
-		std::cout<<"矩阵数量不同"<<std::endl;
-		return;
-	}
-	int rows=inputImages1[0].size().height;
-	int cols=inputImages1[0].size().width;
+	int rows=inputImages1[0].rows;
+	int cols=inputImages1[0].cols;
 
 	for(size_t i=0;i<n;i++){
-		outputImages[i]=inputImages1[i].mul(inputImages2[i]);
+		outputImages[i]=bi*inputImages1[i]+(inputImages2[i]);
 	}
 	Mat sumImage(rows,cols,CV_32FC1,Scalar::all(0));
 	for(size_t i=0;i<n;i++){

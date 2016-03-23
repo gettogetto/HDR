@@ -11,6 +11,6 @@ int main(int argc,char* argv[]){
 	string imageType=".jpg";
 	Mat hdrImage;
 	hdrathm.getHdrImage(multiExposureImages,path,imageType,hdrImage);
-	imshow("1",hdrImage);
+	imshow("result",hdrImage);
 	waitKey(0);
 }
