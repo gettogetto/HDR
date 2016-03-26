@@ -11,6 +11,10 @@ int main(int argc,char* argv[]){
 	string imageType=".jpg";
 	Mat hdrImage;
 	hdrathm.getHdrImage(multiExposureImages,path,imageType,hdrImage);
+	
+	hdrImage.convertTo(hdrImage,CV_8UC3,255.0,0);
 	imshow("result",hdrImage);
+	//std::cout<<hdrImage.at<uchar>(100,100);
+	imwrite("hdr.jpg",hdrImage);
 	waitKey(0);
 }

@@ -150,10 +150,10 @@ void hdrAlgorithm::getVchannelOfHSV(const vector<Mat>& multiExposureImages,vecto
 	for(size_t i=0;i<n;i++){
 		cvtColor(multiExposureImages[i],hsvImage,CV_RGB2HSV);
 		cv::split(hsvImage,planes);
-		outputImages[i]=0.2*planes[0]+0.3*planes[1]+0.5*planes[2];
+		outputImages[i]=0.3*planes[0]+0.3*planes[1]+0.4*planes[2];
 		outputImages[i].convertTo(outputImages[i],CV_32FC1,1.0/255);
 		//cout<<outputImages[i].type();
-		//imshow(std::to_string(long long(i)),outputImages[i]);
+		imshow(std::to_string(long long(i)),outputImages[i]);
 	}
 }
 void hdrAlgorithm::getWeightMapImage_bright(const vector<Mat>&inputImages,vector<Mat>&outputImages){
@@ -205,7 +205,7 @@ void hdrAlgorithm::getWeightMapImage_bright(const vector<Mat>&inputImages,vector
 void hdrAlgorithm::weightMapImage_use_Contrast_and_bright(const vector<Mat>&inputImages1,const vector<Mat>&inputImages2,vector<Mat>&outputImages){
 	size_t n=inputImages1.size();
 	size_t n2=inputImages2.size();
-	const int bi = 0.8;
+	const int bi =1;
 	assert(n==n2);
 
 	int rows=inputImages1[0].rows;

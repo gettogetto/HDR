@@ -4,7 +4,7 @@
 #include<opencv2/imgproc/imgproc.hpp>
 #include<vector>
 using namespace cv;
-#define num 3
+#define num 2
 class hdrAlgorithm
 {
 public:
