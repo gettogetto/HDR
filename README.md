@@ -10,4 +10,5 @@ Before fusing:
 ![image](https://github.com/gettogetto/HDR/blob/master/2.jpg)
 
 After fusing:
+
 ![image](https://github.com/gettogetto/HDR/blob/master/hdr.jpg)
