@@ -60,12 +60,16 @@ Mat hdrAlgorithm::getContrastImage(const Mat& srcImage){
 	kenel.at<float>(3,0)=-4;kenel.at<float>(3,1)=0;kenel.at<float>(3,2)=8;kenel.at<float>(3,3)=0;kenel.at<float>(3,4)=-4;
 	kenel.at<float>(4,0)=-2;kenel.at<float>(4,1)=-4;kenel.at<float>(4,2)=-4;kenel.at<float>(4,3)=-4;kenel.at<float>(4,4)=-2;
 	*/
-	Mat kenel(3,3,CV_32F,Scalar::all(0));
+	Mat kenel(3,3,CV_32F,Scalar(0));
+	kenel.at<float>(0,0)=-1;
 	kenel.at<float>(0,1)=-1;
+	kenel.at<float>(0,2)=-1;
 	kenel.at<float>(1,0)=-1;
-	kenel.at<float>(1,1)= 10;
+	kenel.at<float>(1,1)= 12;
 	kenel.at<float>(1,2)=-1;
+	kenel.at<float>(2,0)=-1;
 	kenel.at<float>(2,1)=-1;
+	kenel.at<float>(2,2)=-1;
 	filter2D(srcImage,dstImage,srcImage.depth(),kenel);
 	return dstImage;
 }
