@@ -14,8 +14,8 @@ public:
 private:
 	void loadMultiExposureImages(vector<Mat>&multiExposureImages,const string& path,const string& imageType);
 	void doFilter(vector<Mat>&inputImages,vector<Mat>&outputImages);
-	Mat getContrastImage(const Mat& srcImage);
-	void getMultiContrastImage(const vector<Mat>&multiExposureImages,vector<Mat>&multiContrastImages);
+	Mat getContrastImage(const Mat& srcImage,int midValue);
+	void getMultiContrastImage(const vector<Mat>&multiExposureImages,vector<Mat>&multiContrastImages,int midValue);
 	void getWeightMapImage_Contrast(const vector<Mat>& multiContrast,vector<Mat>& multiMapImage);
 
 	void getVchannelOfHSV(const vector<Mat>& multiExposureImages,vector<Mat>& outputImages);
@@ -23,5 +23,9 @@ private:
 	
 	void weightMapImage_use_Contrast_and_bright(const vector<Mat>&inputImages1,const vector<Mat>&inputImages2,vector<Mat>&outputImages);
 	Mat getExposureFusionImage(const vector<Mat>&multiExposureImages,vector<Mat>&multiWeightMapImage);
+private:
+	vector<Mat>m_multiExposureImages;
+	vector<Mat>m_multiContrast12;
+	vector<Mat>m_multiContrast8;
 };
 #endif

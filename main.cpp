@@ -15,6 +15,6 @@ int main(int argc,char* argv[]){
 	hdrImage.convertTo(hdrImage,CV_8UC3,255.0,0);
 	imshow("result",hdrImage);
 	//std::cout<<hdrImage.at<uchar>(100,100);
-	imwrite("hdr.jpg",hdrImage);
+	//imwrite("hdr.jpg",hdrImage);
 	waitKey(0);
 }

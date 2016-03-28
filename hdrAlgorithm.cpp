@@ -13,6 +13,7 @@ hdrAlgorithm::~hdrAlgorithm()
 }
 void hdrAlgorithm::getHdrImage(vector<Mat>&multiExposureImages_in,const string& path,const string& imageType,Mat& outputImage){
 	loadMultiExposureImages(multiExposureImages_in,path,imageType);
+	m_multiExposureImages=multiExposureImages_in;//3.27
 	vector<Mat> multiExposureImages(multiExposureImages_in.size());
 	doFilter(multiExposureImages_in,multiExposureImages);
 
@@ -25,20 +26,27 @@ void hdrAlgorithm::getHdrImage(vector<Mat>&multiExposureImages_in,const string& 
 		multiVchannelsImages[i].create(h,w,CV_32FC1);
 	}
 	getVchannelOfHSV(multiExposureImages,multiVchannelsImages);
+	///////////////////////////////
+	m_multiContrast8.resize(num);
+	getMultiContrastImage(multiExposureImages,m_multiContrast8,8);
 	/////////////////////////////////////亮度比重图
 	vector<Mat>MapImage_bright(num);
 	for(int i=0;i<num;i++){
 		MapImage_bright[i].create(h,w,CV_32FC1);
 	}
 	getWeightMapImage_bright(multiVchannelsImages,MapImage_bright);
+	////////////////////////////////
+
 	//////////////////细节比重图
-	vector<Mat>multiContrast(num);
-	getMultiContrastImage(multiExposureImages,multiContrast);
+	m_multiContrast12.resize(num);
+	getMultiContrastImage(multiExposureImages,m_multiContrast12,12);
 	vector<Mat>MapImage_Contrast(num);
 	for(int i=0;i<num;i++){
 		MapImage_Contrast[i].create(h,w,CV_32FC1);
 	}
-	getWeightMapImage_Contrast(multiContrast,MapImage_Contrast);
+	getWeightMapImage_Contrast(m_multiContrast12,MapImage_Contrast);
+	//////////////////////////////////////////////////////////////                                  3.27
+
 	/////////////////////////////////亮度细节比重图
 	vector<Mat>MapImage_Contrast_and_bright(num);
 	for(int i=0;i<num;i++){
@@ -50,7 +58,7 @@ void hdrAlgorithm::getHdrImage(vector<Mat>&multiExposureImages_in,const string& 
 }
 
 
-Mat hdrAlgorithm::getContrastImage(const Mat& srcImage){
+Mat hdrAlgorithm::getContrastImage(const Mat& srcImage,int midValue){
 	Mat dstImage;
 	/*
 	Mat kenel(5,5,CV_32F,Scalar::all(0));
@@ -65,7 +73,7 @@ Mat hdrAlgorithm::getContrastImage(const Mat& srcImage){
 	kenel.at<float>(0,1)=-1;
 	kenel.at<float>(0,2)=-1;
 	kenel.at<float>(1,0)=-1;
-	kenel.at<float>(1,1)= 12;
+	kenel.at<float>(1,1)= midValue;
 	kenel.at<float>(1,2)=-1;
 	kenel.at<float>(2,0)=-1;
 	kenel.at<float>(2,1)=-1;
@@ -91,15 +99,15 @@ void hdrAlgorithm::doFilter(vector<Mat>&inputImages,vector<Mat>&outputImages){
 	for(size_t i=0;i<n;i++){
 		//两个高斯公式的σ可以相同，而且如果σ小于10，则滤波效果不明显，如果大于150，则会有强烈的卡通效果。当实时处理时，内核尺寸d推荐为5；
 		//如果在非实时处理情况下，而且有较强的噪声时，d为9效果会较好。
-		cv::bilateralFilter(inputImages[i],outputImages[i],5,10,10);
+		cv::bilateralFilter(inputImages[i],outputImages[i],5,8,8);
 	}
 	
 }
-void hdrAlgorithm::getMultiContrastImage(const vector<Mat>&multiExposureImages,vector<Mat>&multiContrastImages){
+void hdrAlgorithm::getMultiContrastImage(const vector<Mat>&multiExposureImages,vector<Mat>&multiContrastImages,int midValue){
 	for(int i=0;i<multiExposureImages.size();i++){
 		Mat grayImage;
 		cvtColor(multiExposureImages[i],grayImage,CV_BGR2GRAY);
-		multiContrastImages[i]=getContrastImage(grayImage);
+		multiContrastImages[i]=getContrastImage(grayImage,midValue);
 	}
 }
 void hdrAlgorithm::getWeightMapImage_Contrast(const vector<Mat>& multiContrast,vector<Mat>& multiMapImage){
@@ -154,7 +162,7 @@ void hdrAlgorithm::getVchannelOfHSV(const vector<Mat>& multiExposureImages,vecto
 	for(size_t i=0;i<n;i++){
 		cvtColor(multiExposureImages[i],hsvImage,CV_RGB2HSV);
 		cv::split(hsvImage,planes);
-		outputImages[i]=0.3*planes[0]+0.3*planes[1]+0.4*planes[2];
+		outputImages[i]=/*0.3*planes[0]+0.3*planes[1]+0.4**/planes[2];
 		outputImages[i].convertTo(outputImages[i],CV_32FC1,1.0/255);
 		//cout<<outputImages[i].type();
 		imshow(std::to_string(long long(i)),outputImages[i]);
@@ -165,28 +173,36 @@ void hdrAlgorithm::getWeightMapImage_bright(const vector<Mat>&inputImages,vector
 	Size size=inputImages[0].size();
 	int rows=size.height;
 	int cols=size.width;
+	
+	//平均值法
 	Mat averageImage(rows,cols,CV_32FC1,Scalar::all(0));
 
 	for(size_t i=0;i<n;i++){
-		//cout<<inputImages[i].type()<<endl;
-		//imshow(to_string(long long(i)),inputImages[i]);
 		averageImage+=inputImages[i];
 	}
-	averageImage/=n;
-	//imshow("averageImage",averageImage);
-	//cout<<averageImage.at<float>(200,100);
-
+	averageImage=averageImage/n;
+	
+	//对比度极大值法
+	Mat maxContrastValue(rows,cols,CV_8UC1,Scalar::all(0));////////////////////////////////////////////////////////
 	for(size_t i=0;i<n;i++){
-		//outputImages[i]=1-(inputImages[i]-averageImage).mul(inputImages[i]-averageImage)*500000;
-
-		//====================================================================//
 		for(size_t r=0;r<rows;r++){
 			for(size_t c=0;c<cols;c++){
-				double diff=inputImages[i].at<float>(r,c)-averageImage.at<float>(r,c);
+				maxContrastValue.at<uchar>(r,c)=std::max(maxContrastValue.at<uchar>(r,c),this->m_multiContrast8[i].at<uchar>(r,c));
+			}
+		}
+	}
+	maxContrastValue.convertTo(maxContrastValue,CV_32FC1,1.0/255);
+
+	for(size_t i=0;i<n;i++){
+		for(size_t r=0;r<rows;r++){
+			for(size_t c=0;c<cols;c++){
+				//两种方法确定高斯曲线的中心位置，对比度极大值法和平均值法
+				double diff=inputImages[i].at<float>(r,c)-maxContrastValue.at<float>(r,c);
+				//double diff=inputImages[i].at<float>(r,c)-averageImage.at<float>(r,c);
 				double diff2=diff*diff;
 				double sigma=0.5;
 				double mi=-diff2/(2*sigma*sigma);
-				outputImages[i].at<float>(r,c)=std::pow(2.71828,mi);//高斯
+				outputImages[i].at<float>(r,c)=std::pow(2.7,mi);//高斯
 			}
 		}
 			//cout<<outputImages[i].at<float>(100,100)<<endl;
